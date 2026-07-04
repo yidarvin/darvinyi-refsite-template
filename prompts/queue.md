@@ -16,4 +16,9 @@ To seed a real book: replace the title/subtitle in content/registry.json, then a
 one PENDING row per chapter here (and a matching registry entry) in reading order.
 Then say "run the next one". In graph mode (a survey that follows citations), a run
 appends newly discovered items to the bottom of this table with a source note.
+
+Build notes for an item are optional. A run looks for prompts/notes/<slug>.md first,
+then an optional trailing "notes" column on the row, then derives scope from the
+title and the surrounding chapters. Extra columns are fine as long as every row has
+them (validate.py checks the column count is consistent).
 -->

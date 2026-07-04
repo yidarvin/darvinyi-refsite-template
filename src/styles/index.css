@@ -1,3 +1,13 @@
+/* Self-hosted fonts. The static @fontsource packages register the families as
+   "Inter" and "JetBrains Mono", matching tokens.css exactly. Do not swap in the
+   @fontsource-variable packages: those register "Inter Variable" and would silently
+   drop every page to system-ui with tokens.css unchanged. */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
 @import "./tokens.css";
 @tailwind base;
 @tailwind components;

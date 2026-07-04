@@ -1,11 +1,13 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { registry } from "../lib/registry";
+import { useHead } from "../lib/useHead";
 import { Layout } from "../components/Layout";
 
 // Home --- the table of contents, generated from content/registry.json.
 // Chapters group under their optional `part`. Pending chapters are shown as
 // dimmed, unlinked rows so the shape of the whole book is visible from day one.
 export function Home() {
+  useHead(registry.title, registry.subtitle);
   const parts = groupByPart(registry.chapters);
 
   return (

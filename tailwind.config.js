@@ -20,9 +20,6 @@ export default {
         mono: "var(--font-mono)",
         sans: "var(--font-sans)",
       },
-      maxWidth: {
-        prose: "68ch",
-      },
     },
   },
   plugins: [],

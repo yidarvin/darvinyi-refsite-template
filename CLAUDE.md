@@ -22,6 +22,8 @@ If the skill is not installed, tell me before improvising.
   widget go under `src/chapters/_figures/` and `src/chapters/_widgets/`.
 - `src/styles/tokens.css` --- the running house style. Treat it as source of truth.
 - `src/components/` --- shared primitives: Figure, Widget, ExerciseCard, Callout.
+- `scripts/` --- the repo-owned tooling the skill calls: `validate.py`,
+  `prose_lint.py`, `new_chapter.py`, `mark.py`, `check.sh`, `sitemap.mjs`.
 
 ## House rules
 
@@ -29,4 +31,5 @@ If the skill is not installed, tell me before improvising.
   usual AI tells (see the skill's authoring spec).
 - Never auto-commit to `main` and push, and never deploy, unless I say so. End each
   run with a summary and let me review with `npm run dev`.
-- A run may not mark an item DONE if `npm run typecheck` or `npm run build` fails.
+- `npm run check` is the entire definition of mechanical done. A run may not mark an
+  item DONE unless it passes.

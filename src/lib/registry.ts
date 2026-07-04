@@ -23,6 +23,12 @@ export interface ChapterMeta {
 export interface Registry {
   title: string;
   subtitle: string;
+  /** Build mode. `book` is a linear textbook; `graph` follows citations and may
+   *  append newly discovered items to the queue. Absent means `book`. */
+  mode?: "book" | "graph";
+  /** Optional canonical origin, e.g. "https://example.com". When set, the build
+   *  writes dist/sitemap.xml from the published chapters. */
+  url?: string;
   chapters: ChapterMeta[];
 }
 

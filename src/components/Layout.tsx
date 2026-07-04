@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { registry } from "../lib/registry";
 
 /** The shell: a quiet mono header, a centered reading column, a thin footer. */

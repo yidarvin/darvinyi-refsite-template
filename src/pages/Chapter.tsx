@@ -1,8 +1,10 @@
 import { Suspense, lazy, useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { chapterLoader } from "../lib/chapters";
-import { chapterBySlug, adjacentChapters } from "../lib/registry";
+import { chapterBySlug, adjacentChapters, registry } from "../lib/registry";
+import { useHead } from "../lib/useHead";
 import { Layout } from "../components/Layout";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { NotFound } from "./NotFound";
 
 // Chapter --- resolves :slug to its MDX module and renders it inside the reading
@@ -13,6 +15,11 @@ export function Chapter() {
   const meta = chapterBySlug(slug);
   const loader = chapterLoader(slug);
 
+  useHead(
+    meta ? `${meta.title} · ${registry.title}` : `Not found · ${registry.title}`,
+    meta?.subtitle,
+  );
+
   const Body = useMemo(() => (loader ? lazy(loader) : null), [loader]);
 
   if (!meta || !Body) return <NotFound />;
@@ -22,8 +29,15 @@ export function Chapter() {
 
   return (
     <Layout>
-      <p className="eyebrow mb-3">{`chapter_${num}`}</p>
-      <h1 className="font-mono text-3xl font-bold tracking-tight text-fg">{meta.title}</h1>
+      <div className="flex items-center gap-3">
+        <p className="eyebrow">{`chapter_${num}`}</p>
+        {meta.status === "draft" && (
+          <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[0.65rem] uppercase tracking-wider text-muted">
+            draft
+          </span>
+        )}
+      </div>
+      <h1 className="mt-3 font-mono text-3xl font-bold tracking-tight text-fg">{meta.title}</h1>
       {meta.subtitle && <p className="mt-2 text-lg text-muted">{meta.subtitle}</p>}
       {meta.routes && meta.routes.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -39,9 +53,11 @@ export function Chapter() {
       )}
 
       <article className="mt-10">
-        <Suspense fallback={<p className="font-mono text-sm text-comment">{"// loading..."}</p>}>
-          <Body />
-        </Suspense>
+        <ErrorBoundary key={slug}>
+          <Suspense fallback={<p className="font-mono text-sm text-comment">{"// loading..."}</p>}>
+            <Body />
+          </Suspense>
+        </ErrorBoundary>
       </article>
 
       <nav className="mt-16 flex justify-between border-t border-border pt-6 font-mono text-sm">

@@ -1,7 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
+import { registry } from "../lib/registry";
+import { useHead } from "../lib/useHead";
 import { Layout } from "../components/Layout";
 
 export function NotFound() {
+  useHead(`Not found · ${registry.title}`);
   return (
     <Layout>
       <p className="eyebrow mb-3">404</p>

@@ -1,6 +1,7 @@
 {
   "title": "refsite",
   "subtitle": "a queue-built reference site --- replace this with your subject",
+  "mode": "book",
   "chapters": [
     {
       "num": 0,

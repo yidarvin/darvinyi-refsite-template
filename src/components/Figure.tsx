@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 interface FigureProps {
-  /** Short id shown in the caption, e.g. "0.1". Renders as  /* fig 0.1 */
+  /** Short id shown in the caption, e.g. "0.1". Renders as a fig N.N comment label. */
   id?: string;
   caption?: ReactNode;
   children: ReactNode;
