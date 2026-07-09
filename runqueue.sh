@@ -21,8 +21,9 @@
 #   -a, --all            run every PENDING item until the queue is drained (default)
 #   -n, --count N        run at most N items, then stop
 #   -m, --model MODEL    model passed to claude    (default: claude-opus-4-8[1m])
-#   -e, --effort LEVEL   claude effort: low|medium|high|xhigh|max (default: max).
-#                        "ultracode" is not a headless level; it maps to max.
+#   -e, --effort LEVEL   claude effort (default: ultracode). One of low|medium|high|
+#                        xhigh|max|ultracode. "ultracode" = xhigh + dynamic workflows
+#                        and needs claude >= 2.1.203 (older builds ignore it).
 #   -p, --prompt TEXT    per-item prompt           (default below)
 #   -q, --queue PATH     queue file to read        (default: prompts/queue.md)
 #   -s, --settings VAL   path or JSON for claude --settings (default: none)
@@ -43,7 +44,7 @@ set -uo pipefail
 
 # --- defaults ---------------------------------------------------------------
 MODEL='claude-opus-4-8[1m]'
-EFFORT='max'         # headless effort level: low|medium|high|xhigh|max
+EFFORT='ultracode'   # effort level; ultracode = xhigh + dynamic workflows (claude >= 2.1.203)
 SETTINGS=''          # optional path/JSON for claude --settings (empty = omit)
 QUEUE='prompts/queue.md'
 PROMPT=''            # resolved after parsing so --no-push can adjust the default
@@ -105,16 +106,18 @@ if [ "$PROMPT_SET" -eq 0 ]; then
   if [ "$NO_PUSH" -eq 1 ]; then PROMPT="$DEFAULT_PROMPT_NOPUSH"; else PROMPT="$DEFAULT_PROMPT_PUSH"; fi
 fi
 
-# "ultracode" is an interactive-only mode (an effort picker plus the dynamic-workflow
-# trigger keyword), not a value the headless CLI accepts. Map the common mistake to
-# the closest valid level, and reject any other typo up front rather than let claude
-# silently ignore it and run every item at the default effort.
+# Validate the effort level up front rather than let claude silently ignore a typo and
+# run every item at the default. "ultracode" (xhigh + automatic dynamic workflows) is a
+# real --effort value, but only on claude >= 2.1.203; on older builds it is ignored and
+# falls back to default effort, so warn instead of failing quietly.
 case "$EFFORT" in
-  ultracode)
-    printf '\033[33m%s\033[0m\n' "runqueue: 'ultracode' is not a headless effort level; using --effort max (the closest). Pass -e to choose low|medium|high|xhigh|max." >&2
-    EFFORT=max ;;
   low|medium|high|xhigh|max) ;;
-  *) die "invalid --effort '$EFFORT' (valid: low, medium, high, xhigh, max)" ;;
+  ultracode)
+    ccver="$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    if [ -n "$ccver" ] && [ "$(printf '%s\n%s\n' 2.1.203 "$ccver" | sort -V | head -1)" != "2.1.203" ]; then
+      printf '\033[33m%s\033[0m\n' "runqueue: claude $ccver predates --effort ultracode (needs >= 2.1.203); it will be ignored and default effort used. Pass -e xhigh for the reasoning half without workflows." >&2
+    fi ;;
+  *) die "invalid --effort '$EFFORT' (valid: low, medium, high, xhigh, max, ultracode)" ;;
 esac
 
 # --- move to the repo root (this script lives there) ------------------------
