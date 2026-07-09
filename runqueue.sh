@@ -21,9 +21,11 @@
 #   -a, --all            run every PENDING item until the queue is drained (default)
 #   -n, --count N        run at most N items, then stop
 #   -m, --model MODEL    model passed to claude    (default: claude-opus-4-8[1m])
+#   -e, --effort LEVEL   claude effort: low|medium|high|xhigh|max (default: max).
+#                        "ultracode" is not a headless level; it maps to max.
 #   -p, --prompt TEXT    per-item prompt           (default below)
 #   -q, --queue PATH     queue file to read        (default: prompts/queue.md)
-#   -s, --settings NAME  value for claude --settings (default: ultracode; "" omits it)
+#   -s, --settings VAL   path or JSON for claude --settings (default: none)
 #   -t, --timeout SEC    kill a single claude run after SEC seconds (needs `timeout`
 #                        or `gtimeout`; default: 0 = no limit)
 #       --no-push        build and commit but do not push (adjusts the default prompt)
@@ -41,7 +43,8 @@ set -uo pipefail
 
 # --- defaults ---------------------------------------------------------------
 MODEL='claude-opus-4-8[1m]'
-SETTINGS='ultracode'
+EFFORT='max'         # headless effort level: low|medium|high|xhigh|max
+SETTINGS=''          # optional path/JSON for claude --settings (empty = omit)
 QUEUE='prompts/queue.md'
 PROMPT=''            # resolved after parsing so --no-push can adjust the default
 PROMPT_SET=0
@@ -77,6 +80,7 @@ while [ $# -gt 0 ]; do
     -a|--all)       MAX=''; shift ;;
     -n|--count)     [ $# -ge 2 ] || die "$1 needs a value"; MAX="$(parse_count "$1" "$2")"; shift 2 ;;
     -m|--model)     [ $# -ge 2 ] || die "$1 needs a value"; MODEL="$2"; shift 2 ;;
+    -e|--effort)    [ $# -ge 2 ] || die "$1 needs a value"; EFFORT="$2"; shift 2 ;;
     -p|--prompt)    [ $# -ge 2 ] || die "$1 needs a value"; PROMPT="$2"; PROMPT_SET=1; shift 2 ;;
     -q|--queue)     [ $# -ge 2 ] || die "$1 needs a value"; QUEUE="$2"; shift 2 ;;
     -s|--settings)  [ $# -ge 2 ] || die "$1 needs a value"; SETTINGS="$2"; shift 2 ;;
@@ -100,6 +104,18 @@ done
 if [ "$PROMPT_SET" -eq 0 ]; then
   if [ "$NO_PUSH" -eq 1 ]; then PROMPT="$DEFAULT_PROMPT_NOPUSH"; else PROMPT="$DEFAULT_PROMPT_PUSH"; fi
 fi
+
+# "ultracode" is an interactive-only mode (an effort picker plus the dynamic-workflow
+# trigger keyword), not a value the headless CLI accepts. Map the common mistake to
+# the closest valid level, and reject any other typo up front rather than let claude
+# silently ignore it and run every item at the default effort.
+case "$EFFORT" in
+  ultracode)
+    printf '\033[33m%s\033[0m\n' "runqueue: 'ultracode' is not a headless effort level; using --effort max (the closest). Pass -e to choose low|medium|high|xhigh|max." >&2
+    EFFORT=max ;;
+  low|medium|high|xhigh|max) ;;
+  *) die "invalid --effort '$EFFORT' (valid: low, medium, high, xhigh, max)" ;;
+esac
 
 # --- move to the repo root (this script lives there) ------------------------
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)" || die "cannot resolve script directory"
@@ -147,7 +163,7 @@ count_pending()   { count_status PENDING; }
 count_processed() { echo $(( $(count_status DONE) + $(count_status SKIPPED) )); }
 
 # --- build the claude command ----------------------------------------------
-CLAUDE_ARGS=( -p "$PROMPT" --model "$MODEL" --dangerously-skip-permissions )
+CLAUDE_ARGS=( -p "$PROMPT" --model "$MODEL" --effort "$EFFORT" --dangerously-skip-permissions )
 [ -n "$SETTINGS" ] && CLAUDE_ARGS+=( --settings "$SETTINGS" )
 
 # --- announce the plan ------------------------------------------------------
@@ -159,7 +175,8 @@ printf '\033[1m%s\033[0m\n' "runqueue plan"
 printf '  queue:    %s\n' "$QUEUE"
 printf '  items:    %s\n' "$limit_desc"
 printf '  model:    %s\n' "$MODEL"
-printf '  settings: %s\n' "${SETTINGS:-<none>}"
+printf '  effort:   %s\n' "$EFFORT"
+[ -n "$SETTINGS" ] && printf '  settings: %s\n' "$SETTINGS"
 printf '  timeout:  %s\n' "$([ "$TIMEOUT" -gt 0 ] && echo "${TIMEOUT}s per item (${TIMEOUT_BIN})" || echo 'none')"
 printf '  gate:     %s\n' "$([ "$RUN_CHECK" -eq 1 ] && echo 'npm run check after each item' || echo 'skipped (--no-check)')"
 printf '  command:  claude %s\n' "$(printf '%q ' "${CLAUDE_ARGS[@]}")"
