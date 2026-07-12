@@ -9,7 +9,7 @@ Every chapter is built from three materials, and only three. Prose teaches the i
 
 Here is the figure for this chapter. It is the build loop itself.
 
-<Figure id="0.1" caption="A queue feeds Claude Code, which researches, builds, verifies, and commits one item, then updates the registry the site reads. In graph mode, a run can also add newly discovered items back to the queue.">
+<Figure id="0.1" caption="A queue feeds Claude Code, which researches, builds, and verifies one item, then hands it to a separate critique pass before the registry marks it done. In graph mode, a run can also add newly discovered items back to the queue.">
   <Pipeline />
 </Figure>
 
@@ -17,9 +17,9 @@ Here is the figure for this chapter. It is the build loop itself.
 
 The site does not decide what to build. A queue does. The queue is an ordered list you can read, edit, and reorder at any time. The next thing to build is simply the first item that is not done yet. This is the whole scheduling model, and its plainness is the point: you can open the file on your phone on the train, move an item to the top, and the next run picks it up without ceremony.
 
-Try it. The board below is a queue. Running the next one turns the first pending item into a built one. You are doing by hand what the agent does on your machine.
+Try it. The board below is a queue. Each step turns a pending item into a built one, then a built item into an approved one. You are doing by hand what two separate agents do on your machine.
 
-<Widget name="queue_board" hint="each run turns the next pending chapter into a built one. reorder in real life by editing the queue file.">
+<Widget name="queue_board" hint="each step builds the next pending chapter or approves the next built one. reorder in real life by editing the queue file.">
   <QueueBoard />
 </Widget>
 
@@ -27,7 +27,7 @@ Two behaviors are worth naming. First, building an item can add more items. A su
 
 ## What a run actually does
 
-A run is not a single prompt. It is a small pipeline that repeats identically for every item, which is what keeps a long book consistent. The agent reads the next item and its build notes, researches the primary sources, plans the chapter, builds the prose and the figure and the one widget, reviews its own work against a written contract, runs the typecheck and the build, and commits only if both pass. Then it marks the item done and stops. Because the procedure lives in a skill rather than in your memory, an unattended loop runs it the same way at three in the afternoon and three in the morning.
+A run is not a single prompt. It is a small pipeline that repeats identically for every item, which is what keeps a long book consistent. The agent reads the next item and its build notes, researches the primary sources, plans the chapter, builds the prose and the figure and the one widget, reviews its own work against a written contract, runs the typecheck and the build, and commits only if both pass. Then it marks the item draft, not done. Done is a separate agent's to give: a fresh critique pass, with no memory of the build, checks the chapter against the same contract and writes a verdict. An approve marks the chapter done. A revise sends it back to the builder, which applies the required fixes and hands it back for another look. Because the whole procedure lives in a skill rather than in your memory, an unattended loop runs it the same way at three in the afternoon and three in the morning.
 
 <Callout>
 The registry at <code>content/registry.json</code> is the source of truth for which chapters exist and in what order. The prose lives in <code>src/chapters</code>. Keeping the two separate is what lets the home page show the whole book, including chapters that have not been written yet, as dimmed rows.

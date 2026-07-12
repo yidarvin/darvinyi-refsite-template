@@ -1,14 +1,14 @@
 import { useState } from "react";
 
 // QueueBoard --- the one signature widget for this chapter. It lets the reader
-// feel the core mechanic: a queue of items, each PENDING until a run turns the
-// next one DONE. Pure React state, no persistence (artifacts and this template
-// keep widget state in memory on purpose).
+// feel the core mechanic: a queue of items, each pending until built, then draft
+// until a separate critique pass approves it. Pure React state, no persistence
+// (artifacts and this template keep widget state in memory on purpose).
 
 interface Item {
   id: string;
   title: string;
-  status: "pending" | "done";
+  status: "pending" | "draft" | "done";
 }
 
 const SEED: Item[] = [
@@ -18,16 +18,21 @@ const SEED: Item[] = [
   { id: "04", title: "the middle way", status: "pending" },
 ];
 
+const GLYPH: Record<Item["status"], string> = { pending: "[ ]", draft: "[~]", done: "[x]" };
+
 export function QueueBoard() {
   const [items, setItems] = useState<Item[]>(SEED);
 
-  const doneCount = items.filter((i) => i.status === "done").length;
-  const nextIndex = items.findIndex((i) => i.status === "pending");
+  const builtCount = items.filter((i) => i.status !== "pending").length;
+  const approvedCount = items.filter((i) => i.status === "done").length;
+  const nextIndex = items.findIndex((i) => i.status !== "done");
 
-  function runNext() {
+  function runNextStep() {
     if (nextIndex === -1) return;
     setItems((prev) =>
-      prev.map((it, i) => (i === nextIndex ? { ...it, status: "done" } : it))
+      prev.map((it, i) =>
+        i === nextIndex ? { ...it, status: it.status === "pending" ? "draft" : "done" } : it,
+      ),
     );
   }
 
@@ -39,15 +44,15 @@ export function QueueBoard() {
     <div className="font-sans">
       <div className="mb-4 flex items-center justify-between">
         <span className="font-mono text-xs text-muted">
-          {doneCount}/{items.length} built
+          {builtCount} built / {approvedCount} approved
         </span>
         <div className="flex gap-2">
           <button
-            onClick={runNext}
+            onClick={runNextStep}
             disabled={nextIndex === -1}
             className="rounded border border-accent/50 bg-accent/10 px-3 py-1.5 font-mono text-xs text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            run the next one
+            run the next step
           </button>
           <button
             onClick={reset}
@@ -62,6 +67,7 @@ export function QueueBoard() {
         {items.map((it, i) => {
           const isNext = i === nextIndex;
           const done = it.status === "done";
+          const draft = it.status === "draft";
           return (
             <li
               key={it.id}
@@ -69,21 +75,25 @@ export function QueueBoard() {
               style={{
                 borderColor: done
                   ? "color-mix(in srgb, var(--accent) 40%, transparent)"
-                  : isNext
-                    ? "var(--border)"
+                  : draft
+                    ? "color-mix(in srgb, var(--accent-dim) 40%, transparent)"
                     : "var(--border)",
-                background: done ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "transparent",
-                opacity: done ? 1 : isNext ? 1 : 0.6,
+                background: done
+                  ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                  : draft
+                    ? "color-mix(in srgb, var(--accent-dim) 8%, transparent)"
+                    : "transparent",
+                opacity: done ? 1 : draft ? 0.85 : isNext ? 1 : 0.6,
               }}
             >
               <span
                 className="font-mono text-xs"
-                style={{ color: done ? "var(--accent)" : "var(--comment)" }}
+                style={{ color: done ? "var(--accent)" : draft ? "var(--accent-dim)" : "var(--comment)" }}
               >
-                {done ? "[x]" : "[ ]"}
+                {GLYPH[it.status]}
               </span>
               <span className="font-mono text-xs text-comment">ch_{it.id}</span>
-              <span className={done ? "flex-1 text-sm text-fg" : "flex-1 text-sm text-muted"}>
+              <span className={it.status === "pending" ? "flex-1 text-sm text-muted" : "flex-1 text-sm text-fg"}>
                 {it.title}
               </span>
               {isNext && (
@@ -98,7 +108,7 @@ export function QueueBoard() {
 
       {nextIndex === -1 && (
         <p className="mt-4 font-mono text-xs text-comment">
-          {"// queue empty --- every chapter built"}
+          {"// queue empty --- every chapter built and approved"}
         </p>
       )}
     </div>
