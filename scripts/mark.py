@@ -15,7 +15,10 @@ Full status mapping (registry, queue):
 Refuses up front, with no write, if the slug is missing from either file. After
 writing, it runs the full validate.py suite in-process; on any error it restores
 both files untouched and exits 1. So marking a chapter done while it still holds
-TODO markers is refused: the content gate cannot be skipped by marking.
+TODO markers is refused: the content gate cannot be skipped by marking. The same
+mechanism means `done` additionally requires content/critiques/<slug>.md on disk
+with first line `verdict: approve` (see validate.py); a chapter is only ever
+marked done by the critic, once it has approved.
 """
 from __future__ import annotations
 

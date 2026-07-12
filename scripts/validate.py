@@ -24,6 +24,8 @@ import sys
 
 VALID_REGISTRY_STATUS = {"pending", "draft", "done"}
 VALID_QUEUE_STATUS = {"PENDING", "DONE", "SKIPPED"}
+VALID_VERDICTS = {"approve", "revise", "resolved"}
+VERDICT_RE = re.compile(r"^verdict:\s*([a-z]+)\s*$")
 
 # A shared slug pairs a registry status with a queue status. Any pair not in this
 # set is a mismatch. This encodes: DONE matches done, PENDING matches pending or
@@ -61,6 +63,33 @@ def queue_path(repo: str) -> str:
 
 def chapters_dir(repo: str) -> str:
     return os.path.join(repo, "src", "chapters")
+
+
+def critiques_dir(repo: str) -> str:
+    return os.path.join(repo, "content", "critiques")
+
+
+def critique_path(repo: str, slug: str) -> str:
+    return os.path.join(critiques_dir(repo), f"{slug}.md")
+
+
+def read_verdict(repo: str, slug: str) -> str | None:
+    """Return the verdict token from a critique file's first line.
+
+    None means the file does not exist. "" means it exists but the first line
+    does not match the verdict grammar (validate reports that as an error; a
+    caller like decide.py should treat "" the same as "no usable verdict").
+    """
+    path = critique_path(repo, slug)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            first = fh.readline()
+    except OSError:
+        return ""
+    m = VERDICT_RE.match(first.rstrip("\n"))
+    return m.group(1) if m else ""
 
 
 # ---- registry --------------------------------------------------------------
@@ -263,6 +292,56 @@ def validate(repo: str) -> tuple[list[str], list[str]]:
                 if slug not in reg_slugs:
                     errors.append(f"src/chapters/{name} has no registry entry")
 
+    # critiques -----------------------------------------------------------------
+    # The build-critique loop: a chapter's registry status moves pending -> draft
+    # -> done, and only the critic may grant done, by writing an approving verdict
+    # to content/critiques/<slug>.md. Because mark.py re-runs this validation after
+    # every write and rolls back on any error, check 3 below is what makes
+    # `mark.py <slug> done` physically refuse without an approved critique on file.
+    # Do not duplicate that enforcement in mark.py; this is the one place it lives.
+    if os.path.isdir(critiques_dir(repo)):
+        for name in sorted(os.listdir(critiques_dir(repo))):
+            if not name.endswith(".md"):
+                continue
+            slug = name[: -len(".md")]
+            if slug not in reg_slugs:
+                errors.append(f"content/critiques/{name} has no registry entry")
+                continue
+            verdict = read_verdict(repo, slug)
+            if verdict == "":
+                errors.append(
+                    f"content/critiques/{name} first line must be exactly "
+                    "'verdict: approve|revise|resolved'"
+                )
+            elif verdict is not None and verdict not in VALID_VERDICTS:
+                errors.append(f"content/critiques/{name} has invalid verdict '{verdict}'")
+
+    for slug in reg_order:
+        status = reg_status.get(slug)
+        verdict = read_verdict(repo, slug)
+        if status == "done" and verdict != "approve":
+            if verdict is None:
+                errors.append(
+                    f"registry chapter '{slug}' is 'done' but content/critiques/{slug}.md "
+                    "is missing (done requires an approved critique)"
+                )
+            elif verdict in VALID_VERDICTS:
+                errors.append(
+                    f"registry chapter '{slug}' is 'done' but content/critiques/{slug}.md "
+                    f"has verdict '{verdict}' (done requires an approved critique)"
+                )
+            # a malformed first line was already reported above; do not double-report
+        elif status == "draft" and verdict == "approve":
+            warnings.append(
+                f"'{slug}' has an approved critique but is still 'draft' "
+                f"(run: python3 scripts/mark.py {slug} done)"
+            )
+        elif status == "pending" and verdict is not None:
+            warnings.append(
+                f"content/critiques/{slug}.md exists but '{slug}' is 'pending' "
+                "(stale critique from a reset chapter?)"
+            )
+
     # queue -------------------------------------------------------------------
     q = None
     if not os.path.exists(queue_path(repo)):
@@ -359,6 +438,26 @@ def _summary_lines(repo: str) -> list[str]:
         lines.append(f"next pending: {nxt.get('num')} {nxt.get('slug')} ({nxt.get('title')})")
     else:
         lines.append("next pending: none, the queue is drained")
+
+    approved = revise = resolved = unreviewed = 0
+    for c in chapters:
+        if c.get("status") != "draft" and c.get("status") != "done":
+            continue
+        slug = c.get("slug")
+        if not slug:
+            continue
+        verdict = read_verdict(repo, slug)
+        if verdict == "approve":
+            approved += 1
+        elif verdict == "revise":
+            revise += 1
+        elif verdict == "resolved":
+            resolved += 1
+        elif verdict is None:
+            unreviewed += 1
+    lines.append(
+        f"critiques: {approved} approved, {revise} revise, {resolved} resolved, {unreviewed} unreviewed"
+    )
     return lines
 
 
