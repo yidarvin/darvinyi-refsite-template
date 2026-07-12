@@ -9,7 +9,8 @@ in a skill so it stays consistent across every site of this kind.
 
 The build loop, the critique loop, the queue verbs, the house style, and the
 definition of done all live in the **`refsite-runner`** skill (installed at
-`~/.claude/skills/refsite-runner/`). When I say **"run the next one"**, **"run
+`~/.claude/skills/refsite-runner/`, source: github.com/yidarvin/darvinyi-refsite-runner-skill).
+When I say **"run the next one"**, **"run
 the next N"**, **"critique the next one"**, **"resolve critiques"**, **"queue
 status"**, **"add X"**, **"reprioritize"**, or **"rerun <slug>"**, follow that
 skill.

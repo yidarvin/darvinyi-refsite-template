@@ -124,7 +124,8 @@ After "Use this template", before the first run:
 
 ## Building chapters
 
-With the `refsite-runner` skill installed at `~/.claude/skills/refsite-runner/`,
+With the `refsite-runner` skill installed at `~/.claude/skills/refsite-runner/`
+(`git clone git@github.com:yidarvin/darvinyi-refsite-runner-skill.git ~/.claude/skills/refsite-runner`),
 open Claude Code in this repo and say **"run the next one"**, then, separately,
 **"critique the next one"**. A chapter only reaches `done` once a critique approves
 it; a `revise` verdict is picked up by saying **"resolve critiques"**.
