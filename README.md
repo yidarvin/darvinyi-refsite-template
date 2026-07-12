@@ -42,18 +42,23 @@ which is present on macOS and on the Ubuntu CI runner. Vercel only runs
 | `npm run test`      | Vitest: assert every chapter and widget actually renders.           |
 | `npm run lint`      | ESLint (advisory in the gate).                                      |
 | `npm run preview`   | Serve the production build locally.                                 |
+| `./run.sh status`   | Local dashboard: what's built, what's awaiting critique, what's next. No claude call. |
+| `./run.sh next`     | Decide and run the single next stage (build, resolve, or critique). |
+| `./run.sh loop [N]` | Keep running stages until done, blocked, or N stages run.           |
 
 Scaffolding and status changes go through the repo scripts, not by hand:
 
 ```bash
 python3 scripts/new_chapter.py --slug the-settled-body --num 1 --title "The settled body"
-python3 scripts/mark.py the-settled-body done
+python3 scripts/mark.py the-settled-body draft
 ```
 
 `new_chapter.py` stamps the mdx plus the figure and widget stubs, and writes both the
 registry entry and the queue row. `mark.py` sets the status in both files at once and
 refuses if the result would not validate, so a chapter with unfinished markers cannot
-be marked done.
+be marked draft. `done` additionally requires an approved critique on file --- see
+"How the pieces fit" below --- so `mark.py <slug> done` is the critic's move, not the
+builder's.
 
 ## Deploy
 
@@ -70,18 +75,30 @@ git remote set-url --add --push origin ssh://gitea@<nas>:3030/yidarvin/<name>.gi
 
 ## How the pieces fit
 
+A chapter moves through three states: `pending` (not built), `draft` (built,
+gate-passing, awaiting critique), `done` (critique-approved). Only the critic
+grants `done`, by writing `content/critiques/<slug>.md` with first line
+`verdict: approve`; `npm run validate` enforces that every `done` chapter has one.
+
 - `content/registry.json` is the database: the ordered list of chapters and their
   status, plus the site `title`, `subtitle`, `mode`, and optional `url`. The home page
   renders the whole book from it, including unwritten chapters as dimmed rows.
 - `prompts/queue.md` is the run list. The next item is the first PENDING row. It must
   agree with the registry; `npm run validate` checks that.
 - `prompts/notes/<slug>.md` holds optional build notes for an item.
+- `content/critiques/<slug>.md` holds the critique history for a built chapter: line 1
+  is the current verdict (`approve` | `revise` | `resolved`), everything below is an
+  append-only round-by-round record.
+- `prompts/critique-rubric.md` is the per-site rubric the critic reads on top of the
+  `refsite-runner` skill's generic critique doctrine.
 - `src/chapters/<slug>.mdx` is a chapter. It uses the shared primitives (`Figure`,
   `Widget`, `ExerciseCard`, `Callout`) and imports its own bespoke figure and
   signature widget from `_figures/` and `_widgets/`.
 - `src/styles/tokens.css` is the house style, in one place.
+- `run.sh` is the headless stage driver: `next | loop [N] | status | build | critique`.
 - `scripts/` holds the tooling: `validate.py`, `prose_lint.py`, `new_chapter.py`,
-  `mark.py`, `check.sh`, `sitemap.mjs`. `prose-lint.config.json` tunes the prose gate.
+  `mark.py`, `decide.py`, `check.sh`, `sitemap.mjs`. `prose-lint.config.json` tunes the
+  prose gate.
 - `.github/workflows/check.yml` runs `npm run check` on every push and pull request, so
   the gate travels with every clone.
 
@@ -102,15 +119,29 @@ After "Use this template", before the first run:
 5. `LICENSE` -> confirm the holder.
 6. Seed `prompts/queue.md` with one PENDING row per chapter, matching the registry,
    then say **"run the next one"**.
+7. `prompts/critique-rubric.md` -> tune it to what this site's chapters must get
+   right; the generic critique doctrine lives in the `refsite-runner` skill.
 
 ## Building chapters
 
 With the `refsite-runner` skill installed at `~/.claude/skills/refsite-runner/`,
-open Claude Code in this repo and say **"run the next one"**. To batch unattended:
+open Claude Code in this repo and say **"run the next one"**, then, separately,
+**"critique the next one"**. A chapter only reaches `done` once a critique approves
+it; a `revise` verdict is picked up by saying **"resolve critiques"**.
+
+To batch unattended, use the driver instead of a raw `claude -p` call:
 
 ```bash
-claude -p "run the next one" \
-  --model 'claude-opus-4-8[1m]' \
-  --settings '{"ultracode":true}' \
-  --dangerously-skip-permissions
+./run.sh next      # decide and run the single next stage
+./run.sh loop 6     # run up to 6 stages, then stop
+./run.sh loop -y    # run until the queue is drained and every chapter is approved
 ```
+
+Models default to `claude-sonnet-5` for both roles; override with `BUILD_MODEL` /
+`CRITIC_MODEL`:
+
+```bash
+BUILD_MODEL='claude-opus-4-8[1m]' CRITIC_MODEL='claude-sonnet-5' ./run.sh loop --push -y
+```
+
+`run.sh` commits after every stage but does not push unless you pass `--push`.
