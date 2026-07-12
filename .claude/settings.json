@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./run.sh status)",
+      "Bash(./run.sh status *)",
+      "Bash(python3 scripts/decide.py *)"
+    ]
+  }
+}
