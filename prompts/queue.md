@@ -1,10 +1,12 @@
 # Run Queue
 
 Run order, top to bottom. The **next** item is the first `PENDING` row. Statuses:
-`PENDING`, `DONE`, `SKIPPED`. Update the status cell after each run. Reorder by
-moving rows. Adding a chapter means adding a `PENDING` row here and a matching
-entry in `content/registry.json`. See `CLAUDE.md` for the trigger phrases and the
-`refsite-runner` skill for the per-item procedure.
+`PENDING`, `DONE`, `SKIPPED`. A `PENDING` row can mean either not yet built
+(registry `pending`) or built and awaiting critique (registry `draft`); the
+registry is what tells them apart. Update the status cell after each run.
+Reorder by moving rows. Adding a chapter means adding a `PENDING` row here and a
+matching entry in `content/registry.json`. See `CLAUDE.md` for the trigger
+phrases and the `refsite-runner` skill for the per-item procedure.
 
 | #  | slug                     | item                          | status  |
 |----|--------------------------|-------------------------------|---------|
